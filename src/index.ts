@@ -63,7 +63,6 @@ app.get('/departments', async (req: Request, res: Response) => {
   res.json(result.rows);
 });
 
-// ── Memberships ──────────────────────────────────────────
 app.post('/memberships', async (req: Request, res: Response) => {
   const { userId, tenantId, departmentId, role, status } = req.body;
   try {

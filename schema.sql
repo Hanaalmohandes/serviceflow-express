@@ -1,8 +1,5 @@
--- ServiceFlow schema, written by hand in raw SQL (no ORM).
--- Run this once against a fresh database to create every table.
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
--- pgcrypto gives us gen_random_uuid(), used below as the default for every id column.
 
 CREATE TYPE role AS ENUM ('Admin', 'Manager', 'Reviewer', 'Employee');
 CREATE TYPE membership_status AS ENUM ('Active', 'Invited', 'Suspended');
