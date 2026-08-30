@@ -1,6 +1,6 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Express, NextFunction, Request, Response } from 'express';
 import { pool } from './db.js';
-
+import { signToken, verifyToken, hashPassword, comparePassword } from './auth.js';
 const app: Express = express();
 
 app.use(express.json());
@@ -22,7 +22,7 @@ app.post('/tenants', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/tenants', async (req: Request, res: Response) => {
+app.get('/tenants', requireAuth, requireHost, async (req: Request, res: Response) => {
   const result = await pool.query('SELECT * FROM tenants');
   res.json(result.rows);
 });
@@ -96,8 +96,14 @@ app.post('/requests', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/requests', async (req: Request, res: Response) => {
-  const result = await pool.query('SELECT * FROM requests');
+app.get('/requests', requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (user.isHost) {
+    const result = await pool.query('SELECT * FROM requests');
+    res.json(result.rows);
+    return;
+  }
+  const result = await pool.query('SELECT * FROM requests WHERE tenant_id = $1', [user.tenantId]);
   res.json(result.rows);
 });
 
@@ -188,3 +194,83 @@ const port = 3001;
 app.listen(port, () => {
   console.log(`API running on http://localhost:${port}`);
 });
+
+app.post('/auth/register', async (req: Request, res: Response) => {
+  const { email, name, password } = req.body;
+  try {
+    const passwordHash = await hashPassword(password);
+    const result = await pool.query(
+      'INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id, email, name, is_host, created_at',
+      [email, name, passwordHash]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/auth/login', async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+  try {
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (userResult.rows.length === 0) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+    const user = userResult.rows[0];
+    const valid = await comparePassword(password, user.password_hash);
+    if (!valid) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+
+    if (user.is_host) {
+      const token = signToken({ userId: user.id, isHost: true });
+      res.json({ token, isHost: true });
+      return;
+    }
+
+    const membershipResult = await pool.query(
+      'SELECT * FROM memberships WHERE user_id = $1 LIMIT 1',
+      [user.id]
+    );
+    if (membershipResult.rows.length === 0) {
+      res.status(403).json({ error: 'No tenant membership found' });
+      return;
+    }
+    const membership = membershipResult.rows[0];
+    const token = signToken({
+      userId: user.id,
+      isHost: false,
+      tenantId: membership.tenant_id,
+      role: membership.role,
+    });
+    res.json({ token, isHost: false, tenantId: membership.tenant_id, role: membership.role });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Missing token' });
+    return;
+  }
+  const token = header.split(' ')[1];
+  try {
+    const decoded = verifyToken(token);
+    (req as any).user = decoded;
+    next();
+  } catch (err: any) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
+function requireHost(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).user;
+  if (!user || !user.isHost) {
+    res.status(403).json({ error: 'Host access required' });
+    return;
+  }
+  next();
+}
