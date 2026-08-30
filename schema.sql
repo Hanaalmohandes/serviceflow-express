@@ -21,7 +21,8 @@ CREATE TABLE users (
   name TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   last_login_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT now()
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+   is_host BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE departments (
