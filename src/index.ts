@@ -36,16 +36,42 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 app.post('/auth/register', async (req: Request, res: Response) => {
-  const { email, name, password } = req.body;
+  const { email, name, password, tenantName, tenantSlug } = req.body;
+  if (!email || !name || !password || !tenantName || !tenantSlug) {
+    res.status(400).json({ error: 'Name, email, password, tenant name, and tenant slug are required' });
+    return;
+  }
+
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const passwordHash = await hashPassword(password);
-    const result = await pool.query(
+    const userResult = await client.query(
       'INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id, email, name, is_host, created_at',
       [email, name, passwordHash]
     );
-    res.status(201).json(result.rows[0]);
+    const user = userResult.rows[0];
+    const tenantResult = await client.query(
+      'INSERT INTO tenants (name, slug) VALUES ($1, $2) RETURNING *',
+      [tenantName, tenantSlug]
+    );
+    const tenant = tenantResult.rows[0];
+    await client.query(
+      `INSERT INTO memberships (user_id, tenant_id, role, status)
+       VALUES ($1, $2, 'Admin', 'Active')`,
+      [user.id, tenant.id]
+    );
+    await client.query('COMMIT');
+    res.status(201).json({ user, tenant });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    await client.query('ROLLBACK');
+    if (err.code === '23505') {
+      res.status(409).json({ error: 'That email address or tenant slug is already in use' });
+      return;
+    }
+    res.status(500).json({ error: 'Could not create account' });
+  } finally {
+    client.release();
   }
 });
 
