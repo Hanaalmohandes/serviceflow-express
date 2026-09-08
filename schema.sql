@@ -20,6 +20,7 @@ CREATE TABLE users (
   email TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
   password_hash TEXT NOT NULL,
+  language_preference TEXT NOT NULL DEFAULT 'en' CHECK (language_preference IN ('en', 'ar', 'fr', 'es', 'de')),
   last_login_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
    is_host BOOLEAN NOT NULL DEFAULT false
@@ -28,7 +29,8 @@ CREATE TABLE users (
 CREATE TABLE departments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES tenants(id),
-  name TEXT NOT NULL
+  name TEXT NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true
 );
 
 CREATE TABLE memberships (
@@ -57,7 +59,7 @@ CREATE TABLE requests (
 
 CREATE TABLE status_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  request_id UUID NOT NULL REFERENCES requests(id),
+  request_id UUID NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
   changed_by UUID NOT NULL REFERENCES users(id),
   old_status request_status NOT NULL,
   new_status request_status NOT NULL,
@@ -67,7 +69,7 @@ CREATE TABLE status_history (
 
 CREATE TABLE comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  request_id UUID NOT NULL REFERENCES requests(id),
+  request_id UUID NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
   author_id UUID NOT NULL REFERENCES users(id),
   parent_id UUID REFERENCES comments(id),
   content TEXT NOT NULL,
@@ -78,8 +80,9 @@ CREATE TABLE notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id),
   tenant_id UUID NOT NULL REFERENCES tenants(id),
-  request_id UUID REFERENCES requests(id),
+  request_id UUID REFERENCES requests(id) ON DELETE SET NULL,
   type notification_type NOT NULL,
+  message TEXT,
   is_read BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP NOT NULL DEFAULT now()
 );

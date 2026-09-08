@@ -14,16 +14,21 @@ export const actions: Actions = {
       typeof name !== 'string' ||
       typeof email !== 'string' ||
       typeof password !== 'string' ||
-      typeof tenantName !== 'string' ||
       typeof tenantSlug !== 'string'
     ) {
-      return fail(400, { error: 'Please complete every field.' });
+      return fail(400, { error: 'Please complete your name, email, password, and organization slug.' });
     }
 
-    const response = await fetch('http://localhost:3001/auth/register', {
+    const response = await fetch('https://localhost:3001/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, tenantName, tenantSlug })
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        tenantName: typeof tenantName === 'string' ? tenantName.trim() : '',
+        tenantSlug
+      })
     });
 
     if (!response.ok) {

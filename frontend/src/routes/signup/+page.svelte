@@ -18,8 +18,8 @@
 
     <form method="POST" use:enhance>
       <label>
-        Organization name
-        <input type="text" name="tenantName" required autocomplete="organization" />
+        Organization name <span>(only needed to create a new organization)</span>
+        <input type="text" name="tenantName" autocomplete="organization" />
       </label>
 
       <label>
@@ -33,6 +33,8 @@
           placeholder="my-company"
         />
       </label>
+
+      <p class="hint">Use an existing organization’s slug to join it. Leave the name blank when joining.</p>
 
       <label>
         Name
@@ -107,6 +109,16 @@
   input:focus {
     outline: none;
     border-color: rgb(140, 134, 126);
+  }
+
+  label span,
+  .hint {
+    font-size: 0.78rem;
+    color: #756f68;
+  }
+
+  .hint {
+    margin: -0.5rem 0 0;
   }
 
   button {

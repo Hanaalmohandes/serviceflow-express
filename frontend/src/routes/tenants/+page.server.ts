@@ -9,8 +9,8 @@ export const load: PageServerLoad = async ({ locals, cookies, fetch }) => {
     throw redirect(303, '/requests');
   }
 
-  const token = cookies.get('token');
-  const response = await fetch('http://localhost:3001/tenants', {
+  const token = cookies.get('accessToken');
+  const response = await fetch('https://localhost:3001/tenants', {
     headers: { Authorization: `Bearer ${token}` },
   });
   const tenants = await response.json();
@@ -20,12 +20,12 @@ export const load: PageServerLoad = async ({ locals, cookies, fetch }) => {
 
 export const actions: Actions = {
   create: async ({ request, cookies, fetch }) => {
-    const token = cookies.get('token');
+    const token = cookies.get('accessToken');
     const data = await request.formData();
     const name = data.get('name');
     const slug = data.get('slug');
 
-    const response = await fetch('http://localhost:3001/tenants', {
+    const response = await fetch('https://localhost:3001/tenants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ name, slug }),
@@ -39,7 +39,7 @@ export const actions: Actions = {
   },
 
   edit: async ({ request, cookies, fetch }) => {
-    const token = cookies.get('token');
+    const token = cookies.get('accessToken');
     const data = await request.formData();
     const id = data.get('id');
     const name = data.get('name');
@@ -58,7 +58,7 @@ export const actions: Actions = {
 
     console.log('Sending payload to backend API:', payload);
 
-    const response = await fetch(`http://localhost:3001/tenants/${id}`, {
+    const response = await fetch(`https://localhost:3001/tenants/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
@@ -74,11 +74,11 @@ export const actions: Actions = {
   },
 
   delete: async ({ request, cookies, fetch }) => {
-    const token = cookies.get('token');
+    const token = cookies.get('accessToken');
     const data = await request.formData();
     const id = data.get('id');
 
-    const response = await fetch(`http://localhost:3001/tenants/${id}`, {
+    const response = await fetch(`https://localhost:3001/tenants/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
