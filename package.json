@@ -1,10 +1,15 @@
 {
   "name": "serviceflow-express",
   "version": "1.0.0",
+  "packageManager": "pnpm@11.15.1",
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "dev": "tsx --env-file=.env src/index.ts"
+    "dev": "pnpm run dev:api",
+    "dev:api": "tsx --env-file=.env src/index.ts",
+    "dev:frontend": "pnpm --dir frontend dev",
+    "check": "tsc --noEmit",
+    "build:frontend": "pnpm --dir frontend build"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

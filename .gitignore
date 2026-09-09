@@ -1,6 +1,8 @@
 node_modules/
 .env
 .env.local
+certs/*.pem
+.pnpm-store/
 dist/
 build/
 .DS_Store
