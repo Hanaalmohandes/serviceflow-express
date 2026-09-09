@@ -4,7 +4,16 @@ import { defineConfig } from 'vite';
 import fs from 'node:fs';
 import path from 'node:path';
 
+const keyPath = path.resolve('../certs/localhost-key.pem');
+const certificatePath = path.resolve('../certs/localhost.pem');
+const https =
+	fs.existsSync(keyPath) && fs.existsSync(certificatePath)
+		? { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certificatePath) }
+		: undefined;
+
 export default defineConfig({
+	// The shared API/frontend secrets live in the repository root.
+	envDir: '..',
 	plugins: [
 		sveltekit({
 			compilerOptions: {
@@ -20,10 +29,7 @@ export default defineConfig({
 		})
 	],
 	server: {
-		https: {
-			key: fs.readFileSync(path.resolve('../certs/localhost-key.pem')),
-			cert: fs.readFileSync(path.resolve('../certs/localhost.pem'))
-		},
+		https,
 		// SvelteKit rewrites this generated folder during route type generation.
 		// Keeping it out of Vite's watcher prevents transient ENOENT reload errors.
 		watch: {

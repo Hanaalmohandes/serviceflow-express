@@ -1,8 +1,17 @@
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const cert = path.resolve(process.cwd(), '../certs/localhost.pem');
+const key = path.resolve(process.cwd(), '../certs/localhost-key.pem');
 const command = process.platform === 'win32' ? 'vite.cmd' : 'vite';
+
+if (!fs.existsSync(cert) || !fs.existsSync(key)) {
+  console.error(
+    'HTTPS certificate files are missing. Create certs/localhost.pem and certs/localhost-key.pem as described in the README.'
+  );
+  process.exit(1);
+}
 
 const child = spawn(command, ['dev'], {
   stdio: 'inherit',
