@@ -1,6 +1,4 @@
-# ServiceFlow Express
-
-ServiceFlow is an HTTPS Express API with a SvelteKit frontend. Use **pnpm only**; do not use `npm install` or add `package-lock.json` files.
+ Use **pnpm only**; do not use `npm install` or add `package-lock.json` files.
 
 ## Setup
 

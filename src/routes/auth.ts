@@ -1,8 +1,13 @@
 import { Router } from 'express';
 import { comparePassword, hashPassword, signAccessToken, signRefreshToken, verifyRefreshToken } from '../auth.js';
 import { pool } from '../db.js';
+import { EMAIL_PATTERN, validateRegistration } from '../validation.js';
 
 const router = Router();
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 async function issueTokens(user: { id: string; is_host: boolean; language_preference?: string }) {
   let claims: Record<string, unknown> = {
@@ -26,11 +31,12 @@ async function issueTokens(user: { id: string; is_host: boolean; language_prefer
 }
 
 router.post('/register', async (req, res) => {
-  const { email, name, password, tenantName, tenantSlug } = req.body;
-  if (!email || !name || !password || !tenantSlug) {
-    res.status(400).json({ error: 'Name, email, password, and organization slug are required' });
+  const validation = validateRegistration(req.body ?? {});
+  if ('error' in validation) {
+    res.status(400).json(validation);
     return;
   }
+  const { email, name, password, tenantName, tenantSlug } = validation.value;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -84,8 +90,13 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [req.body.email]);
-    if (!userResult.rows.length || !await comparePassword(req.body.password, userResult.rows[0].password_hash)) {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
+    if (!EMAIL_PATTERN.test(email) || !password) {
+      res.status(400).json({ error: 'Enter a valid email address and password.' }); return;
+    }
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (!userResult.rows.length || !await comparePassword(password, userResult.rows[0].password_hash)) {
       res.status(401).json({ error: 'Invalid credentials' }); return;
     }
     res.json(await issueTokens(userResult.rows[0]));

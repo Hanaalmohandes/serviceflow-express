@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { toast } from 'svelte-sonner';
 
   let { data, form } = $props();
   let editingId = $state<string | null>(null);
@@ -21,6 +22,11 @@
       ? data.departments.filter((department: { id: string; is_active: boolean }) => department.is_active)
       : data.departments.filter((department: { id: string; is_active: boolean }) => department.id === data.user.departmentId)
   );
+  const withToast = () => async ({ result, update }: any) => {
+    if (result.type === 'success') toast.success('Saved successfully.');
+    if (result.type === 'failure') toast.error(result.data?.error ?? 'The action could not be completed.');
+    await update();
+  };
 </script>
 
 <svelte:head>
@@ -35,9 +41,9 @@
   {/if}
 
   <!-- Create form -->
-  <form method="POST" action="?/create" use:enhance class="create-form">
-    <input type="text" name="title" placeholder={text.requestTitle} required />
-    <input type="text" name="description" placeholder={text.description} />
+  <form method="POST" action="?/create" use:enhance={withToast} class="create-form">
+    <input type="text" name="title" placeholder={text.requestTitle} required minlength="3" maxlength="120" />
+    <input type="text" name="description" placeholder={text.description} maxlength="2000" />
     <select name="departmentId" required>
       {#each availableDepartments as department}
         <option value={department.id}>{department.name}</option>
@@ -80,9 +86,9 @@
                 >
                   <input type="hidden" name="id" value={req.id} />
                   
-                  <input type="text" name="title" value={req.title} required class="edit-input" />
+                  <input type="text" name="title" value={req.title} required minlength="3" maxlength="120" class="edit-input" />
                   
-                  <input type="text" name="description" value={req.description ?? ''} placeholder={text.description} class="edit-input" />
+                  <input type="text" name="description" value={req.description ?? ''} placeholder={text.description} maxlength="2000" class="edit-input" />
 
                   <select name="priority" value={req.priority} class="edit-select">
                     {#each priorities as level}
@@ -105,7 +111,7 @@
               {#if canManageRequests}
                 <td class="actions">
                   <button onclick={() => (editingId = req.id)}>{text.edit}</button>
-                  <form method="POST" action="?/delete" use:enhance style="display: inline">
+                  <form method="POST" action="?/delete" use:enhance={withToast} style="display: inline">
                     <input type="hidden" name="id" value={req.id} />
                     <button type="submit">{text.delete}</button>
                   </form>
@@ -124,9 +130,9 @@
                     {/each}
                   </ul>
                 {/if}
-                <form method="POST" action="?/addComment" use:enhance class="comment-form">
+                <form method="POST" action="?/addComment" use:enhance={withToast} class="comment-form">
                   <input type="hidden" name="id" value={req.id} />
-                  <input name="content" required placeholder="Add a comment" aria-label="Add a comment" />
+                  <input name="content" required placeholder="Add a comment" aria-label="Add a comment" maxlength="1000" />
                   <button type="submit">Comment</button>
                 </form>
               </section>

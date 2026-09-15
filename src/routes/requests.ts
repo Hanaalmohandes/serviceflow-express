@@ -2,6 +2,8 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../db.js';
 import { getAuthUser, requireAuth } from '../middleware/auth.js';
+import { isAllowed } from '../authorization.js';
+import { validateComment, validateRequest } from '../validation.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -26,7 +28,7 @@ async function findAuthorizedRequest(
     res.status(403).json({ error: 'This request belongs to another department' });
     return null;
   }
-  if (requireAdmin && !user.isHost && user.role !== 'Admin') {
+  if (requireAdmin && !isAllowed(user, 'request:modify')) {
     res.status(403).json({ error: 'Admin access required to modify requests' });
     return null;
   }
@@ -34,11 +36,13 @@ async function findAuthorizedRequest(
 }
 router.post('/', async (req, res) => {
   const user = getAuthUser(req);
-  const { title, description } = req.body;
+  const validation = validateRequest(req.body ?? {});
+  if ('error' in validation) { res.status(400).json(validation); return; }
+  const { title, description } = validation.value;
   const tenantId = user.isHost ? req.body.tenantId : user.tenantId;
   const departmentId = req.body.departmentId ?? user.departmentId;
   if (!tenantId || !departmentId) { res.status(400).json({ error: 'A department is required' }); return; }
-  if (!user.isHost && user.role !== 'Admin' && departmentId !== user.departmentId) {
+  if (!user.isHost && !isAllowed(user, 'department:manage') && departmentId !== user.departmentId) {
     res.status(403).json({ error: 'Regular users can only create requests for their department' });
     return;
   }
@@ -68,19 +72,18 @@ router.patch('/:id/status', async (req, res) => { const current = await findAuth
 router.get('/:id/history', async (req, res) => { if (!await findAuthorizedRequest(req.params.id, req, res)) return; const result = await pool.query('SELECT * FROM status_history WHERE request_id = $1 ORDER BY created_at', [req.params.id]); res.json(result.rows); });
 router.post('/:id/comments', async (req, res) => {
   const request = await findAuthorizedRequest(req.params.id, req, res);
-  const { content, parentId } = req.body;
+  const { parentId } = req.body;
   if (!request) return;
-  if (typeof content !== 'string' || !content.trim()) {
-    res.status(400).json({ error: 'Comment content is required' });
-    return;
-  }
+  const validation = validateComment(req.body.content);
+  if ('error' in validation) { res.status(400).json(validation); return; }
+  const content = validation.value;
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const comment = await client.query(
       'INSERT INTO comments (request_id, author_id, content, parent_id) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.params.id, getAuthUser(req).userId, content.trim(), parentId ?? null]
+      [req.params.id, getAuthUser(req).userId, content, parentId ?? null]
     );
     await client.query(
       `INSERT INTO notifications (user_id, tenant_id, request_id, type, message)

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Toaster } from 'svelte-sonner';
   let { data, children } = $props();
 
   const labels: Record<string, Record<string, string>> = {
@@ -17,6 +18,8 @@
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
   });
 </script>
+
+<Toaster position="top-right" richColors closeButton />
 
 {#if data.user}
   <nav>

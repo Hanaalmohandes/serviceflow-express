@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
+import { validateSignUp } from '$lib/validation';
 
 export const actions: Actions = {
   default: async ({ request, fetch }) => {
@@ -12,6 +13,8 @@ export const actions: Actions = {
     if (typeof name !== 'string' || typeof email !== 'string' || typeof password !== 'string' || typeof tenantSlug !== 'string') {
       return fail(400, { error: 'Please complete your name, email, password, and organization slug.' });
     }
+    const validationError = validateSignUp({ name, email, password, tenantName: typeof tenantName === 'string' ? tenantName : '', tenantSlug });
+    if (validationError) return fail(400, { error: validationError });
     const response = await fetch('https://localhost:3001/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

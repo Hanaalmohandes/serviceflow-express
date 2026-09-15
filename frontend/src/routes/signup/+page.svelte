@@ -2,6 +2,7 @@
   import { enhance } from '$app/forms';
 
   let { form } = $props();
+  const namePattern = "[\\p{L}][\\p{L}\\p{M}' -]{1,79}";
 </script>
 
 <svelte:head>
@@ -19,7 +20,7 @@
     <form method="POST" use:enhance>
       <label>
         Organization name <span>(only needed to create a new organization)</span>
-        <input type="text" name="tenantName" autocomplete="organization" />
+        <input type="text" name="tenantName" autocomplete="organization" minlength="2" maxlength="100" />
       </label>
 
       <label>
@@ -31,6 +32,7 @@
           pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
           title="Use lowercase letters, numbers, and hyphens only."
           placeholder="my-company"
+          maxlength="63"
         />
       </label>
 
@@ -38,7 +40,7 @@
 
       <label>
         Name
-        <input type="text" name="name" required autocomplete="name" />
+        <input type="text" name="name" required autocomplete="name" minlength="2" maxlength="80" pattern={namePattern} title="Use 2–80 letters, spaces, apostrophes, or hyphens." />
       </label>
 
       <label>
@@ -48,7 +50,7 @@
 
       <label>
         Password
-        <input type="password" name="password" required autocomplete="new-password" />
+        <input type="password" name="password" required autocomplete="new-password" minlength="8" maxlength="128" />
       </label>
 
       <button type="submit">Create account</button>

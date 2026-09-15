@@ -23,7 +23,7 @@
 
       <label>
         Password
-        <input type="password" name="password" required autocomplete="current-password" />
+        <input type="password" name="password" required autocomplete="current-password" maxlength="128" />
       </label>
 
       <button type="submit">Log in</button>

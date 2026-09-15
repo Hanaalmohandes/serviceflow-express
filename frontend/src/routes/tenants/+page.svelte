@@ -17,8 +17,8 @@
   {/if}
 
   <form method="POST" action="?/create" use:enhance class="create-form">
-    <input type="text" name="name" placeholder="Tenant name" required />
-    <input type="text" name="slug" placeholder="slug" required />
+    <input type="text" name="name" placeholder="Tenant name" required minlength="2" maxlength="100" />
+    <input type="text" name="slug" placeholder="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" maxlength="63" title="Use lowercase letters, numbers, and single hyphens." />
     <button type="submit">Add Tenant</button>
   </form>
 
@@ -58,8 +58,8 @@
                   class="edit-form"
                 >
                   <input type="hidden" name="id" value={tenant.id} />
-                  <input type="text" name="name" value={tenant.name} required />
-                  <input type="text" name="slug" value={tenant.slug} required />
+                  <input type="text" name="name" value={tenant.name} required minlength="2" maxlength="100" />
+                  <input type="text" name="slug" value={tenant.slug} required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" maxlength="63" title="Use lowercase letters, numbers, and single hyphens." />
                   
                   <select name="is_active" value={String(tenant.is_active)}>
                     <option value="true">Yes</option>

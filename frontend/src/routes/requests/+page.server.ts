@@ -1,5 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
+import { validateComment, validateRequest } from '$lib/validation';
 
 const API_URL = 'https://localhost:3001';
 
@@ -75,6 +76,9 @@ export const actions: Actions = {
     const title = data.get('title');
     const description = data.get('description');
     const departmentId = data.get('departmentId');
+    if (typeof title !== 'string' || typeof description !== 'string') return fail(400, { error: 'Enter a request title and description.' });
+    const validationError = validateRequest({ title, description });
+    if (validationError) return fail(400, { error: validationError });
 
     const response = await fetch(`${API_URL}/requests`, {
       method: 'POST',
@@ -120,6 +124,9 @@ export const actions: Actions = {
         error: 'Request ID is required'
       });
     }
+    if (typeof title !== 'string' || typeof description !== 'string') return fail(400, { error: 'Enter a request title and description.' });
+    const validationError = validateRequest({ title, description });
+    if (validationError) return fail(400, { error: validationError });
 
     const response = await fetch(
       `${API_URL}/requests/${id}`,
@@ -249,6 +256,9 @@ export const actions: Actions = {
         error: 'Request ID is required'
       });
     }
+    if (typeof content !== 'string') return fail(400, { error: 'Enter a comment.' });
+    const validationError = validateComment(content);
+    if (validationError) return fail(400, { error: validationError });
 
     const response = await fetch(
       `${API_URL}/requests/${id}/comments`,

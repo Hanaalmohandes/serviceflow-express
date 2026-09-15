@@ -10,7 +10,7 @@
   {#if form?.error}<p class="error">{form.error}</p>{/if}
 
   <form method="POST" action="?/create" class="create-form">
-    <input name="name" required placeholder="Department name" />
+    <input name="name" required placeholder="Department name" minlength="2" maxlength="80" />
     {#if data.isHost}
       <select name="tenantId" required>
         <option value="" disabled selected>Select organization</option>
