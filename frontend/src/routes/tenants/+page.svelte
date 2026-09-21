@@ -1,8 +1,17 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import type { SubmitFunction } from './$types';
 
   let { data, form } = $props();
   let editingId = $state<string | null>(null);
+
+  const closeEditorOnSuccess: SubmitFunction = () => async ({ result, update }) => {
+    await update({ reset: false });
+
+    if (result.type === 'success') {
+      editingId = null;
+    }
+  };
 </script>
 
 <svelte:head>
@@ -41,22 +50,7 @@
             {#if editingId === tenant.id}
               <!-- EDIT MODE -->
               <td colspan="4">
-                <form 
-                  method="POST" 
-                  action="?/edit" 
-                  use:enhance={() => {
-                    return async ({ result, update }) => {
-                      // 1. Force SvelteKit to run load() and refresh page data first
-                      await update({ reset: false });
-                      
-                      // 2. Only close edit mode after the page state has updated
-                      if (result.type === 'success') {
-                        editingId = null;
-                      }
-                    };
-                  }} 
-                  class="edit-form"
-                >
+                <form method="POST" action="?/edit" use:enhance={closeEditorOnSuccess} class="edit-form">
                   <input type="hidden" name="id" value={tenant.id} />
                   <input type="text" name="name" value={tenant.name} required minlength="2" maxlength="100" />
                   <input type="text" name="slug" value={tenant.slug} required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" maxlength="63" title="Use lowercase letters, numbers, and single hyphens." />

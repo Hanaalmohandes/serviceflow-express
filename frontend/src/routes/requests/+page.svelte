@@ -1,6 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import type { SubmitFunction } from './$types';
   import { toast } from 'svelte-sonner';
+  import BadgeCheckIcon from '@lucide/svelte/icons/badge-check';
+  import { Badge, type BadgeVariant } from '$lib/components/ui/badge/index.js';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
+  import { Input } from '$lib/components/ui/input/index.js';
 
   let { data, form } = $props();
   let editingId = $state<string | null>(null);
@@ -22,11 +28,20 @@
       ? data.departments.filter((department: { id: string; is_active: boolean }) => department.is_active)
       : data.departments.filter((department: { id: string; is_active: boolean }) => department.id === data.user.departmentId)
   );
-  const withToast = () => async ({ result, update }: any) => {
+  const withToast: SubmitFunction = () => async ({ result, update }) => {
     if (result.type === 'success') toast.success('Saved successfully.');
     if (result.type === 'failure') toast.error(result.data?.error ?? 'The action could not be completed.');
     await update();
   };
+  const closeEditorOnSuccess: SubmitFunction = () => async ({ result, update }) => {
+    if (result.type === 'success') editingId = null;
+    await update();
+  };
+  const statusVariant = (status: string): BadgeVariant =>
+    status === 'Rejected' ? 'destructive' : status === 'Draft' || status === 'Under_review' ? 'outline' : 'secondary';
+  const priorityVariant = (priority: string): BadgeVariant =>
+    priority === 'Urgent' ? 'destructive' : priority === 'Low' ? 'outline' : 'secondary';
+  const isVerifiedStatus = (status: string) => status === 'Approved' || status === 'Completed';
 </script>
 
 <svelte:head>
@@ -40,17 +55,24 @@
     <p class="error">{form.error}</p>
   {/if}
 
-  <!-- Create form -->
-  <form method="POST" action="?/create" use:enhance={withToast} class="create-form">
-    <input type="text" name="title" placeholder={text.requestTitle} required minlength="3" maxlength="120" />
-    <input type="text" name="description" placeholder={text.description} maxlength="2000" />
-    <select name="departmentId" required>
-      {#each availableDepartments as department}
-        <option value={department.id}>{department.name}</option>
-      {/each}
-    </select>
-    <button type="submit">{text.newRequest}</button>
-  </form>
+  <Card class="mb-6">
+    <CardHeader>
+      <CardTitle>{text.newRequest}</CardTitle>
+      <CardDescription>Create a request for an active department.</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <form method="POST" action="?/create" use:enhance={withToast} class="create-form">
+        <Input type="text" name="title" placeholder={text.requestTitle} required minlength={3} maxlength={120} />
+        <Input type="text" name="description" placeholder={text.description} maxlength={2000} />
+        <select name="departmentId" required>
+          {#each availableDepartments as department}
+            <option value={department.id}>{department.name}</option>
+          {/each}
+        </select>
+        <Button type="submit">{text.newRequest}</Button>
+      </form>
+    </CardContent>
+  </Card>
 
   {#if data.requests.length === 0}
     <p class="empty">{text.empty}</p>
@@ -74,21 +96,14 @@
                 <form 
                   method="POST" 
                   action="?/edit" 
-                  use:enhance={() => {
-                    return async ({ result, update }) => {
-                      if (result.type === 'success') {
-                        editingId = null; // Close edit mode on success
-                      }
-                      await update();
-                    };
-                  }} 
+                  use:enhance={closeEditorOnSuccess}
                   class="edit-row-form"
                 >
-                  <input type="hidden" name="id" value={req.id} />
+                  <Input type="hidden" name="id" value={req.id} />
                   
-                  <input type="text" name="title" value={req.title} required minlength="3" maxlength="120" class="edit-input" />
+                  <Input type="text" name="title" value={req.title} required minlength={3} maxlength={120} class="edit-input" />
                   
-                  <input type="text" name="description" value={req.description ?? ''} placeholder={text.description} maxlength="2000" class="edit-input" />
+                  <Input type="text" name="description" value={req.description ?? ''} placeholder={text.description} maxlength={2000} class="edit-input" />
 
                   <select name="priority" value={req.priority} class="edit-select">
                     {#each priorities as level}
@@ -97,23 +112,28 @@
                   </select>
 
                   <div class="edit-buttons">
-                    <button type="submit">{text.save}</button>
-                    <button type="button" onclick={() => (editingId = null)} class="cancel-btn">{text.cancel}</button>
+                    <Button type="submit">{text.save}</Button>
+                    <Button type="button" variant="outline" onclick={() => (editingId = null)}>{text.cancel}</Button>
                   </div>
                 </form>
               </td>
             {:else}
               <!-- VIEW MODE -->
               <td>{req.title}</td>
-              <td><span class="badge">{text[req.status] || req.status}</span></td>
-              <td><span class="priority-text">{text[req.priority] || req.priority}</span></td>
+              <td>
+                <Badge variant={statusVariant(req.status)}>
+                  {#if isVerifiedStatus(req.status)}<BadgeCheckIcon />{/if}
+                  {text[req.status] || req.status}
+                </Badge>
+              </td>
+              <td><Badge variant={priorityVariant(req.priority)}>{text[req.priority] || req.priority}</Badge></td>
               <td>{new Date(req.created_at).toLocaleDateString(locale)}</td>
               {#if canManageRequests}
                 <td class="actions">
-                  <button onclick={() => (editingId = req.id)}>{text.edit}</button>
+                  <Button type="button" variant="outline" onclick={() => (editingId = req.id)}>{text.edit}</Button>
                   <form method="POST" action="?/delete" use:enhance={withToast} style="display: inline">
                     <input type="hidden" name="id" value={req.id} />
-                    <button type="submit">{text.delete}</button>
+                    <Button type="submit" variant="destructive">{text.delete}</Button>
                   </form>
                 </td>
               {/if}
@@ -131,9 +151,9 @@
                   </ul>
                 {/if}
                 <form method="POST" action="?/addComment" use:enhance={withToast} class="comment-form">
-                  <input type="hidden" name="id" value={req.id} />
-                  <input name="content" required placeholder="Add a comment" aria-label="Add a comment" maxlength="1000" />
-                  <button type="submit">Comment</button>
+                  <Input type="hidden" name="id" value={req.id} />
+                  <Input name="content" required placeholder="Add a comment" aria-label="Add a comment" maxlength={1000} />
+                  <Button type="submit">Comment</Button>
                 </form>
               </section>
             </td>
@@ -161,27 +181,6 @@
     display: flex;
     gap: 0.5rem;
     margin-bottom: 1.5rem;
-  }
-
-  .create-form input {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid rgb(100, 95, 89);
-    border-radius: 4px;
-  }
-
-  .create-form button,
-  .actions button,
-  .edit-buttons button {
-    padding: 0.4rem 0.8rem;
-    background: rgb(100, 95, 89);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .cancel-btn {
-    background: #6c757d !important;
   }
 
   table {
@@ -217,7 +216,6 @@
     width: 100%;
   }
 
-  .edit-input,
   .edit-select {
     padding: 0.35rem 0.5rem;
     border: 1px solid rgb(100, 95, 89);
@@ -229,19 +227,6 @@
     display: flex;
     gap: 0.4rem;
     margin-left: auto;
-  }
-
-  .badge {
-    display: inline-block;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    background: rgb(100, 95, 89);
-    color: white;
-  }
-
-  .priority-text {
-    font-weight: 500;
   }
 
   .error {
@@ -277,19 +262,4 @@
     gap: .5rem;
   }
 
-  .comment-form input {
-    flex: 1;
-    padding: .35rem .5rem;
-    border: 1px solid rgb(100, 95, 89);
-    border-radius: 4px;
-  }
-
-  .comment-form button {
-    padding: .35rem .7rem;
-    background: rgb(100, 95, 89);
-    color: white;
-    border: 0;
-    border-radius: 4px;
-    cursor: pointer;
-  }
 </style>

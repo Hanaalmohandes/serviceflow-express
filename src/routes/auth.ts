@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { comparePassword, hashPassword, signAccessToken, signRefreshToken, verifyRefreshToken } from '../auth.js';
 import { pool } from '../db.js';
 import { EMAIL_PATTERN, validateRegistration } from '../validation.js';
+import { logger } from '../logger.js';
 
 const router = Router();
 router.use((_req, res, next) => {
@@ -81,9 +82,11 @@ router.post('/register', async (req, res) => {
       [userResult.rows[0].id, tenant.id, department.rows[0].id, existingTenant.rows.length ? 'Employee' : 'Admin']
     );
     await client.query('COMMIT');
+    logger.info('auth.registration_succeeded', { userId: userResult.rows[0].id, joinedExistingTenant: Boolean(existingTenant.rows.length) });
     res.status(201).json({ user: userResult.rows[0], tenant });
   } catch (error: any) {
     await client.query('ROLLBACK');
+    logger.error('auth.registration_failed', { error: error instanceof Error ? error.message : 'Unknown registration error' });
     res.status(error.code === '23505' ? 409 : 500).json({ error: error.code === '23505' ? 'That email address or tenant slug is already in use' : 'Could not create account' });
   } finally { client.release(); }
 });
@@ -97,10 +100,12 @@ router.post('/login', async (req, res) => {
     }
     const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (!userResult.rows.length || !await comparePassword(password, userResult.rows[0].password_hash)) {
+      logger.warn('auth.login_failed', { reason: 'invalid_credentials' });
       res.status(401).json({ error: 'Invalid credentials' }); return;
     }
+    logger.info('auth.login_succeeded', { userId: userResult.rows[0].id, isHost: userResult.rows[0].is_host });
     res.json(await issueTokens(userResult.rows[0]));
-  } catch (error: any) { res.status(error.status ?? 500).json({ error: error.message ?? 'Could not log in' }); }
+  } catch (error: any) { logger.error('auth.login_failed', { error: error instanceof Error ? error.message : 'Unknown login error' }); res.status(error.status ?? 500).json({ error: error.message ?? 'Could not log in' }); }
 });
 
 router.post('/refresh', async (req, res) => {
@@ -110,7 +115,7 @@ router.post('/refresh', async (req, res) => {
     const userResult = await pool.query('SELECT id, is_host, language_preference FROM users WHERE id = $1', [decoded.userId]);
     if (!userResult.rows.length) { res.status(401).json({ error: 'User not found' }); return; }
     res.json(await issueTokens(userResult.rows[0]));
-  } catch (error: any) { res.status(error.status ?? 401).json({ error: error.status ? error.message : 'Invalid or expired refresh token' }); }
+  } catch (error: any) { logger.warn('auth.refresh_failed', { reason: error instanceof Error ? error.message : 'Invalid refresh token' }); res.status(error.status ?? 401).json({ error: error.status ? error.message : 'Invalid or expired refresh token' }); }
 });
 
 export default router;

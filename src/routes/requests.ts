@@ -2,8 +2,9 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { pool } from '../db.js';
 import { getAuthUser, requireAuth } from '../middleware/auth.js';
-import { isAllowed } from '../authorization.js';
+import { DEPARTMENT_MANAGE, isAllowed, REQUEST_COMMENT, REQUEST_CREATE, REQUEST_DELETE, REQUEST_UPDATE, REQUEST_VIEW } from '../authorization.js';
 import { validateComment, validateRequest } from '../validation.js';
+import { logger } from '../logger.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -11,7 +12,7 @@ async function findAuthorizedRequest(
   id: string,
   req: Request,
   res: Response,
-  requireAdmin = false
+  requiredPermission?: 'update' | 'delete'
 ) {
   const existing = await pool.query('SELECT * FROM requests WHERE id = $1', [id]);
   if (!existing.rows.length) {
@@ -28,21 +29,29 @@ async function findAuthorizedRequest(
     res.status(403).json({ error: 'This request belongs to another department' });
     return null;
   }
-  if (requireAdmin && !isAllowed(user, 'request:modify')) {
+  if (requiredPermission === 'update' && !isAllowed(user, REQUEST_UPDATE)) {
     res.status(403).json({ error: 'Admin access required to modify requests' });
+    return null;
+  }
+  if (requiredPermission === 'delete' && !isAllowed(user, REQUEST_DELETE)) {
+    res.status(403).json({ error: 'Admin access required to delete requests' });
     return null;
   }
   return existing.rows[0];
 }
 router.post('/', async (req, res) => {
   const user = getAuthUser(req);
+  if (!isAllowed(user, REQUEST_CREATE)) {
+    res.status(403).json({ error: 'Request creation permission required' });
+    return;
+  }
   const validation = validateRequest(req.body ?? {});
   if ('error' in validation) { res.status(400).json(validation); return; }
   const { title, description } = validation.value;
   const tenantId = user.isHost ? req.body.tenantId : user.tenantId;
   const departmentId = req.body.departmentId ?? user.departmentId;
   if (!tenantId || !departmentId) { res.status(400).json({ error: 'A department is required' }); return; }
-  if (!user.isHost && !isAllowed(user, 'department:manage') && departmentId !== user.departmentId) {
+  if (!user.isHost && !isAllowed(user, DEPARTMENT_MANAGE) && departmentId !== user.departmentId) {
     res.status(403).json({ error: 'Regular users can only create requests for their department' });
     return;
   }
@@ -53,11 +62,16 @@ router.post('/', async (req, res) => {
       'INSERT INTO requests (tenant_id, department_id, title, description, creator_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [tenantId, departmentId, title, description ?? null, user.isHost ? req.body.creatorId : user.userId]
     );
+    logger.info('request.created', { requestId: result.rows[0].id, tenantId, departmentId, actorId: user.userId });
     res.status(201).json(result.rows[0]);
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { logger.error('request.create_failed', { actorId: user.userId, error: error instanceof Error ? error.message : 'Unknown request error' }); res.status(500).json({ error: error.message }); }
 });
 router.get('/', async (req, res) => {
   const user = getAuthUser(req);
+  if (!isAllowed(user, REQUEST_VIEW)) {
+    res.status(403).json({ error: 'Request viewing permission required' });
+    return;
+  }
   const result = user.isHost
     ? await pool.query('SELECT * FROM requests')
     : user.role === 'Admin'
@@ -66,11 +80,12 @@ router.get('/', async (req, res) => {
   res.json(result.rows);
 });
 router.get('/:id', async (req, res) => { const request = await findAuthorizedRequest(req.params.id, req, res); if (request) res.json(request); });
-router.patch('/:id', async (req, res) => { if (!await findAuthorizedRequest(req.params.id, req, res, true)) return; const { title, description, priority } = req.body; const result = await pool.query('UPDATE requests SET title = COALESCE($1, title), description = COALESCE($2, description), priority = COALESCE($3, priority) WHERE id = $4 RETURNING *', [title ?? null, description ?? null, priority ?? null, req.params.id]); res.json(result.rows[0]); });
-router.delete('/:id', async (req, res) => { if (!await findAuthorizedRequest(req.params.id, req, res, true)) return; const client = await pool.connect(); try { await client.query('BEGIN'); await client.query('DELETE FROM status_history WHERE request_id = $1', [req.params.id]); await client.query('DELETE FROM comments WHERE request_id = $1', [req.params.id]); await client.query('UPDATE notifications SET request_id = NULL WHERE request_id = $1', [req.params.id]); const deleted = await client.query('DELETE FROM requests WHERE id = $1 RETURNING id', [req.params.id]); await client.query('COMMIT'); if (!deleted.rows.length) { res.status(404).json({ error: 'Not found' }); return; } res.status(204).send(); } catch { await client.query('ROLLBACK'); res.status(500).json({ error: 'Could not delete request' }); } finally { client.release(); } });
-router.patch('/:id/status', async (req, res) => { const current = await findAuthorizedRequest(req.params.id, req, res, true); if (!current) return; try { const updated = await pool.query('UPDATE requests SET status = $1 WHERE id = $2 RETURNING *', [req.body.status, req.params.id]); await pool.query('INSERT INTO status_history (request_id, changed_by, old_status, new_status) VALUES ($1, $2, $3, $4)', [req.params.id, getAuthUser(req).userId, current.status, req.body.status]); res.json(updated.rows[0]); } catch (error: any) { res.status(500).json({ error: error.message }); } });
+router.patch('/:id', async (req, res) => { if (!await findAuthorizedRequest(req.params.id, req, res, 'update')) return; const { title, description, priority } = req.body; const result = await pool.query('UPDATE requests SET title = COALESCE($1, title), description = COALESCE($2, description), priority = COALESCE($3, priority) WHERE id = $4 RETURNING *', [title ?? null, description ?? null, priority ?? null, req.params.id]); res.json(result.rows[0]); });
+router.delete('/:id', async (req, res) => { if (!await findAuthorizedRequest(req.params.id, req, res, 'delete')) return; const client = await pool.connect(); try { await client.query('BEGIN'); await client.query('DELETE FROM status_history WHERE request_id = $1', [req.params.id]); await client.query('DELETE FROM comments WHERE request_id = $1', [req.params.id]); await client.query('UPDATE notifications SET request_id = NULL WHERE request_id = $1', [req.params.id]); const deleted = await client.query('DELETE FROM requests WHERE id = $1 RETURNING id', [req.params.id]); await client.query('COMMIT'); if (!deleted.rows.length) { res.status(404).json({ error: 'Not found' }); return; } res.status(204).send(); } catch { await client.query('ROLLBACK'); res.status(500).json({ error: 'Could not delete request' }); } finally { client.release(); } });
+router.patch('/:id/status', async (req, res) => { const current = await findAuthorizedRequest(req.params.id, req, res, 'update'); if (!current) return; try { const updated = await pool.query('UPDATE requests SET status = $1 WHERE id = $2 RETURNING *', [req.body.status, req.params.id]); await pool.query('INSERT INTO status_history (request_id, changed_by, old_status, new_status) VALUES ($1, $2, $3, $4)', [req.params.id, getAuthUser(req).userId, current.status, req.body.status]); res.json(updated.rows[0]); } catch (error: any) { res.status(500).json({ error: error.message }); } });
 router.get('/:id/history', async (req, res) => { if (!await findAuthorizedRequest(req.params.id, req, res)) return; const result = await pool.query('SELECT * FROM status_history WHERE request_id = $1 ORDER BY created_at', [req.params.id]); res.json(result.rows); });
 router.post('/:id/comments', async (req, res) => {
+  if (!isAllowed(getAuthUser(req), REQUEST_COMMENT)) { res.status(403).json({ error: 'Comment permission required' }); return; }
   const request = await findAuthorizedRequest(req.params.id, req, res);
   const { parentId } = req.body;
   if (!request) return;
@@ -93,9 +108,11 @@ router.post('/:id/comments', async (req, res) => {
       [request.tenant_id, req.params.id, `New comment on request: ${request.title}`]
     );
     await client.query('COMMIT');
+    logger.info('request.comment_created', { requestId: req.params.id, actorId: getAuthUser(req).userId });
     res.status(201).json(comment.rows[0]);
   } catch (error: any) {
     await client.query('ROLLBACK');
+    logger.error('request.comment_failed', { requestId: req.params.id, error: error instanceof Error ? error.message : 'Unknown comment error' });
     res.status(500).json({ error: error.message || 'Could not add comment' });
   } finally {
     client.release();

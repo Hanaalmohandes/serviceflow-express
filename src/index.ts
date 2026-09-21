@@ -9,10 +9,12 @@ import requestsRoutes from './routes/requests.js';
 import tenantsRoutes from './routes/tenants.js';
 import usersRoutes from './routes/users.js';
 import { departments, memberships } from './routes/organization.js';
+import { logger, requestLogger } from './logger.js';
 
 const app = express();
 
 app.use(express.json());
+app.use(requestLogger);
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
@@ -23,6 +25,7 @@ app.use('/requests', requestsRoutes);
 app.use('/notifications', notificationsRoutes);
 
 async function start() {
+  logger.info('api.starting', { port: 3001 });
   await pool.query(
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS language_preference TEXT NOT NULL DEFAULT 'en' CHECK (language_preference IN ('en', 'ar', 'fr', 'es', 'de'))"
   );
@@ -51,10 +54,10 @@ async function start() {
       cert: fs.readFileSync(path.resolve('certs/localhost.pem'))
     },
     app
-  ).listen(3001, () => console.log('API running on https://localhost:3001'));
+  ).listen(3001, () => logger.info('api.started', { port: 3001, protocol: 'https' }));
 }
 
 start().catch((error) => {
-  console.error('Could not start API:', error);
+  logger.error('api.start_failed', { error: error instanceof Error ? error.message : 'Unknown startup error' });
   process.exit(1);
 });

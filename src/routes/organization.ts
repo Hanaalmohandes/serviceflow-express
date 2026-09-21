@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { getAuthUser, requireAuth } from '../middleware/auth.js';
-import { isAllowed } from '../authorization.js';
+import { DEPARTMENT_MANAGE, isAllowed } from '../authorization.js';
 import { readCache, privateReadCache } from '../cache.js';
 import { validateDepartmentName } from '../validation.js';
 
 function canManageOrganization(user: ReturnType<typeof getAuthUser>) {
-  return isAllowed(user, 'department:manage');
+  return isAllowed(user, DEPARTMENT_MANAGE);
 }
 
 const departments = Router();
