@@ -1,6 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { validateLogin } from '$lib/validation';
+import { API_URL } from '$lib/server/api';
 
 export const actions: Actions = {
   default: async ({ request, cookies, fetch }) => {
@@ -10,7 +11,7 @@ export const actions: Actions = {
     if (typeof email !== 'string' || typeof password !== 'string') return fail(400, { error: 'Enter your email address and password.' });
     const validationError = validateLogin({ email, password });
     if (validationError) return fail(400, { error: validationError });
-    const response = await fetch('https://localhost:3001/auth/login', {
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password })
     });
     if (!response.ok) {

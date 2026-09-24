@@ -1,7 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
-const API_URL = 'https://localhost:3001';
+import { API_URL } from '$lib/server/api';
 
 export const load: PageServerLoad = async ({ locals, cookies, fetch }) => {
   if (!locals.user) throw redirect(303, '/login');

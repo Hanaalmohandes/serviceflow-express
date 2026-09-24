@@ -48,7 +48,6 @@
         {#each data.tenants as tenant (tenant.id)}
           <tr>
             {#if editingId === tenant.id}
-              <!-- EDIT MODE -->
               <td colspan="4">
                 <form method="POST" action="?/edit" use:enhance={closeEditorOnSuccess} class="edit-form">
                   <input type="hidden" name="id" value={tenant.id} />
@@ -66,7 +65,6 @@
               </td>
               <td></td>
             {:else}
-              <!-- VIEW MODE -->
               <td>{tenant.name}</td>
               <td>{tenant.slug}</td>
               <td>{tenant.is_active ? 'Yes' : 'No'}</td>

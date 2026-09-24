@@ -13,27 +13,19 @@ const https =
 		: undefined;
 
 export default defineConfig({
-	// The shared API/frontend secrets live in the repository root.
 	envDir: '..',
 	plugins: [
 		tailwindcss(),
 		sveltekit({
 			compilerOptions: {
-				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-
-			// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
-			// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
-			// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 			adapter: adapter()
 		})
 	],
 	server: {
 		https,
-		// SvelteKit rewrites this generated folder during route type generation.
-		// Keeping it out of Vite's watcher prevents transient ENOENT reload errors.
 		watch: {
 			ignored: ['**/.svelte-kit/**']
 		}

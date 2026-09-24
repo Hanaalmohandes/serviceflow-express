@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { validateSignUp } from '$lib/validation';
+import { API_URL } from '$lib/server/api';
 
 export const actions: Actions = {
   default: async ({ request, fetch }) => {
@@ -15,7 +16,7 @@ export const actions: Actions = {
     }
     const validationError = validateSignUp({ name, email, password, tenantName: typeof tenantName === 'string' ? tenantName : '', tenantSlug });
     if (validationError) return fail(400, { error: validationError });
-    const response = await fetch('https://localhost:3001/auth/register', {
+    const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password, tenantName: typeof tenantName === 'string' ? tenantName.trim() : '', tenantSlug })

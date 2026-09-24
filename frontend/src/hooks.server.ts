@@ -1,8 +1,7 @@
 import jwt from 'jsonwebtoken';
 import type { Handle } from '@sveltejs/kit';
 import { JWT_ACCESS_SECRET } from '$env/static/private';
-
-const API_URL = 'https://localhost:3001';
+import { API_URL } from '$lib/server/api';
 
 export const handle: Handle = async ({ event, resolve }) => {
   let accessToken = event.cookies.get('accessToken');

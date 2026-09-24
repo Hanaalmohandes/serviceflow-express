@@ -91,7 +91,6 @@
         {#each data.requests as req (req.id)}
           <tr>
             {#if editingId === req.id}
-              <!-- EDIT MODE: Entire row is wrapped inside a single form element -->
               <td colspan={canManageRequests ? 5 : 4}>
                 <form 
                   method="POST" 
@@ -118,7 +117,6 @@
                 </form>
               </td>
             {:else}
-              <!-- VIEW MODE -->
               <td>{req.title}</td>
               <td>
                 <Badge variant={statusVariant(req.status)}>
@@ -208,7 +206,6 @@
     gap: 0.5rem;
   }
 
-  /* Layout for the full edit row form */
   .edit-row-form {
     display: flex;
     gap: 0.75rem;

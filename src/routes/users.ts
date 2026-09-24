@@ -58,7 +58,6 @@ router.delete('/:id', requireAuth, requireHost, async (req, res) => {
       return;
     }
 
-    // Clear references before deleting comments so comment replies remain valid.
     await client.query(
       `UPDATE comments SET parent_id = NULL
        WHERE parent_id IN (
