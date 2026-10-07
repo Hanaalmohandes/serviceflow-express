@@ -4,11 +4,11 @@
   let { data, children } = $props();
 
   const labels: Record<string, Record<string, string>> = {
-    en: { tenants: 'Tenants', users: 'Users', departments: 'Departments', requests: 'My Requests', preferences: 'Preferences', notifications: 'Notifications', logout: 'Log out' },
-    ar: { tenants: 'المؤسسات', users: 'المستخدمون', departments: 'الأقسام', requests: 'طلباتي', preferences: 'التفضيلات', notifications: 'الإشعارات', logout: 'تسجيل الخروج' },
-    fr: { tenants: 'Organisations', users: 'Utilisateurs', departments: 'Services', requests: 'Mes demandes', preferences: 'Préférences', notifications: 'Notifications', logout: 'Déconnexion' },
-    es: { tenants: 'Organizaciones', users: 'Usuarios', departments: 'Departamentos', requests: 'Mis solicitudes', preferences: 'Preferencias', notifications: 'Notificaciones', logout: 'Cerrar sesión' },
-    de: { tenants: 'Organisationen', users: 'Benutzer', departments: 'Abteilungen', requests: 'Meine Anfragen', preferences: 'Einstellungen', notifications: 'Benachrichtigungen', logout: 'Abmelden' }
+    en: { tenants: 'Tenants', users: 'Users', departments: 'Departments', requests: 'My Requests', assistant: 'AI Assistant', preferences: 'Preferences', notifications: 'Notifications', logout: 'Log out' },
+    ar: { tenants: 'المؤسسات', users: 'المستخدمون', departments: 'الأقسام', requests: 'طلباتي', assistant: 'المساعد الذكي', preferences: 'التفضيلات', notifications: 'الإشعارات', logout: 'تسجيل الخروج' },
+    fr: { tenants: 'Organisations', users: 'Utilisateurs', departments: 'Services', requests: 'Mes demandes', assistant: 'Assistant IA', preferences: 'Préférences', notifications: 'Notifications', logout: 'Déconnexion' },
+    es: { tenants: 'Organizaciones', users: 'Usuarios', departments: 'Departamentos', requests: 'Mis solicitudes', assistant: 'Asistente de IA', preferences: 'Preferencias', notifications: 'Notificaciones', logout: 'Cerrar sesión' },
+    de: { tenants: 'Organisationen', users: 'Benutzer', departments: 'Abteilungen', requests: 'Meine Anfragen', assistant: 'KI-Assistent', preferences: 'Einstellungen', notifications: 'Benachrichtigungen', logout: 'Abmelden' }
   };
 
   let language = $derived(data.language || 'en');
@@ -35,6 +35,7 @@
           <a href="/departments">{text.departments}</a>
         {/if}
       {/if}
+      <a href="/assistant">{text.assistant}</a>
       <a href="/notifications">{text.notifications}</a>
       <a href="/preferences">{text.preferences}</a>
     </div>

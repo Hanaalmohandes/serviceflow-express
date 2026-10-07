@@ -10,7 +10,8 @@
     "dev:frontend": "pnpm --dir frontend dev",
     "check": "tsc --noEmit",
     "build:frontend": "pnpm --dir frontend build",
-    "test:ai": "tsx --test src/routes/assistant.test.ts"
+    "test:ai": "tsx --test src/routes/assistant.test.ts",
+    "test:frontend": "tsx --test frontend/src/lib/assistant/chat.test.ts"
   },
   "dependencies": {
     "ai": "^7.0.126",
